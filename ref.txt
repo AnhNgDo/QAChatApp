@@ -1,2 +1,0 @@
-https://github.com/farukalampro/Langchain-PDF-App-using-ChatGPT/blob/main/main.py
-
