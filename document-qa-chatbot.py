@@ -42,7 +42,7 @@ def create_qa_chain(uploaded_file):
     document_text: string of all text in input file
 
     '''
-    # Add progress bar for debug
+    # Progress bar for debug
     # progress_text = "Running create_vector_stores function in progress. Please wait."
     # my_bar = st.progress(0, text=progress_text)
 
@@ -153,8 +153,8 @@ if not uploaded_file:
 qa_chain, text_chunks, document_text = create_qa_chain(uploaded_file)
 
 ### Debug printing ###
-st.write("Document Text")
-st.write(document_text[:300])
+# st.write("Document Text")
+# st.write(document_text[:300])
 
 # st.write(f"Number of Chunks: {len(text_chunks)}")
 # st.write(text_chunks)
@@ -184,14 +184,4 @@ if question := st.chat_input("Ask me any thing..."):
         message_placeholder = st.empty()
         stream_handler = StreamHandler(message_placeholder)
         answer = qa_chain.run(question, callbacks=[stream_handler])
-        # answer = qa_chain.run(question)
-        # message_placeholder.markdown(answer)
         st.session_state.messages.append({"role": "assistant", "content": answer})
-
-        # message_placeholder = st.empty()
-        # answer = ""
-        # for response in qa_chain.run(question):
-        #     answer += response
-        #     message_placeholder.markdown(answer + "▌")
-        # message_placeholder.markdown(answer)
-        # st.session_state.messages.append({"role": "assistant", "content": answer})
