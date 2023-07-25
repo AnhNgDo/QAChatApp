@@ -3,7 +3,7 @@ import time
 from PyPDF2 import PdfReader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.embeddings import OpenAIEmbeddings
-from langchain.vectorstores import Chroma
+from langchain.vectorstores import DocArrayInMemorySearch
 from langchain.chat_models import ChatOpenAI
 from langchain.memory import ConversationBufferMemory
 from langchain.chains import ConversationalRetrievalChain
@@ -14,7 +14,8 @@ from langchain.callbacks.base import BaseCallbackHandler
 CHUNK_SIZE = 1000
 CHUNK_OVERLAP = 150
 SEARCH_TYPE = 'similarity'
-SEARCH_K = 3
+SEARCH_K = 2
+FETCH_K = 4
 
 # callback handler for streaming output
 class StreamHandler(BaseCallbackHandler):
@@ -66,10 +67,10 @@ def create_qa_chain(uploaded_file):
     embeddings = OpenAIEmbeddings(openai_api_key=openai_api_key)
 
     # vector store
-    db = Chroma.from_texts(text_chunks, embedding=embeddings)
+    vector_db = DocArrayInMemorySearch.from_texts(text_chunks, embedding=embeddings)
 
     # define retriever
-    retriever = db.as_retriever(search_type=SEARCH_TYPE, search_kwargs={"k": SEARCH_K})
+    retriever = vector_db.as_retriever(search_type=SEARCH_TYPE, search_kwargs={"k": SEARCH_K, "fetch_k": FETCH_K})
     
     # llm for condense chat history + follow up question
     # streaming = False to not show the condensed question in chat
