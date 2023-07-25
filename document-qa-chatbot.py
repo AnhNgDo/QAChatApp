@@ -12,10 +12,9 @@ from langchain.callbacks.base import BaseCallbackHandler
 
 # Global Variables
 CHUNK_SIZE = 1000
-CHUNK_OVERLAP = 150
+CHUNK_OVERLAP = 200
 SEARCH_TYPE = 'similarity'
-SEARCH_K = 2
-FETCH_K = 4
+SEARCH_K = 3
 
 # callback handler for streaming output
 class StreamHandler(BaseCallbackHandler):
@@ -70,7 +69,7 @@ def create_qa_chain(uploaded_file):
     vector_db = DocArrayInMemorySearch.from_texts(text_chunks, embedding=embeddings)
 
     # define retriever
-    retriever = vector_db.as_retriever(search_type=SEARCH_TYPE, search_kwargs={"k": SEARCH_K, "fetch_k": FETCH_K})
+    retriever = vector_db.as_retriever(search_type=SEARCH_TYPE, search_kwargs={"k": SEARCH_K})
     
     # llm for condense chat history + follow up question
     # streaming = False to not show the condensed question in chat
@@ -109,6 +108,7 @@ def create_qa_chain(uploaded_file):
     question_template = """
     Use the following pieces of context and a follow up question to answer the question at the end.
     If the context is not relevant, please answer the question by using your own knowledge about the topic.
+    If you don't know the answer, just say that you don't know, don't try to make up an answer.
     Use dot points format as much as possible when answer the question.\n
     Context: {context}\n
     Question: {question}\n
