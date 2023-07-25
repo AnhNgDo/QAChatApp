@@ -11,8 +11,8 @@ from langchain.prompts import PromptTemplate
 from langchain.callbacks.base import BaseCallbackHandler
 
 # Global Variables
-CHUNK_SIZE = 500
-CHUNK_OVERLAP = 200
+CHUNK_SIZE = 1000
+CHUNK_OVERLAP = 150
 SEARCH_TYPE = 'similarity'
 SEARCH_K = 3
 
@@ -92,7 +92,7 @@ def create_qa_chain(uploaded_file):
     condense_template = """
     Given the following conversation and a follow up question, 
     rephrase the follow up question to be a standalone question. 
-    Try to preserve the ogirinal question as much as possible question during rephrasing.\n
+    Try to preserve the ogirinal question as much as possible when rephrase the question.\n
     Chat History: {chat_history}\n
     Follow Up Input: {question}\n
     Standalone question:
@@ -108,8 +108,7 @@ def create_qa_chain(uploaded_file):
     question_template = """
     Use the following pieces of context and a follow up question to answer the question at the end.
     If the context is not relevant, please answer the question by using your own knowledge about the topic.
-    If you don't have own knowledge about the topics, just say that you don't know, don't try to make up an answer. 
-    Use dot points and keep the answer concise where possible.\n
+    Use dot points format as much as possible when answer the question.\n
     Context: {context}\n
     Question: {question}\n
     Helpful Answer:
