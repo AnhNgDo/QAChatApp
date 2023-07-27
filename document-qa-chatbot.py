@@ -1,6 +1,6 @@
 import streamlit as st
-import time
-from PyPDF2 import PdfReader
+import os, time, tempfile
+from langchain.document_loaders import PyPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.embeddings import OpenAIEmbeddings
 from langchain.vectorstores import DocArrayInMemorySearch
@@ -11,7 +11,7 @@ from langchain.prompts import PromptTemplate
 from langchain.callbacks.base import BaseCallbackHandler
 
 # Global Variables
-CHUNK_SIZE = 1000
+CHUNK_SIZE = 1500
 CHUNK_OVERLAP = 200
 SEARCH_TYPE = 'similarity'
 SEARCH_K = 3
@@ -28,7 +28,7 @@ class StreamHandler(BaseCallbackHandler):
 
 # read file content, process text data, create Q&A chain
 @st.cache_resource
-def create_qa_chain(uploaded_file):
+def create_qa_chain(uploaded_files):
     '''
     Read pdf file content, split into text chunks
     then perform embedding and store in vector database
@@ -51,22 +51,25 @@ def create_qa_chain(uploaded_file):
     #     my_bar.progress(percent_complete + 1, text=progress_text)
     # End progress bar    
 
-    # read file content
-    document_text = ""
-    pdf_reader = PdfReader(uploaded_file)
+     # Read documents
+    docs = []
+    temp_dir = tempfile.TemporaryDirectory()
+    for file in uploaded_files:
+        temp_filepath = os.path.join(temp_dir.name, file.name)
+        with open(temp_filepath, "wb") as f:
+            f.write(file.getvalue())
+        loader = PyPDFLoader(temp_filepath)
+        docs.extend(loader.load())
 
-    for page in pdf_reader.pages:
-        document_text += page.extract_text()
-    
-    # split file content into chunks
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size=CHUNK_SIZE, chunk_overlap=CHUNK_OVERLAP, length_function=len)
-    text_chunks = text_splitter.split_text(document_text)
+     # Split documents
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=1500, chunk_overlap=200)
+    doc_chunks = text_splitter.split_documents(docs)
 
     # embedding 
     embeddings = OpenAIEmbeddings(openai_api_key=openai_api_key)
 
     # vector store
-    vector_db = DocArrayInMemorySearch.from_texts(text_chunks, embedding=embeddings)
+    vector_db = DocArrayInMemorySearch.from_documents(doc_chunks, embedding=embeddings)
 
     # define retriever
     retriever = vector_db.as_retriever(search_type=SEARCH_TYPE, search_kwargs={"k": SEARCH_K})
@@ -91,8 +94,7 @@ def create_qa_chain(uploaded_file):
     # custom prompt for condense chat history + follow up question
     condense_template = """
     Given the following conversation and a follow up question, 
-    rephrase the follow up question to be a standalone question. 
-    Try to preserve the ogirinal question as much as possible when rephrase the question.\n
+    rephrase the follow up question to be a standalone question in the same language.\n
     Chat History: {chat_history}\n
     Follow Up Input: {question}\n
     Standalone question:
@@ -127,7 +129,7 @@ def create_qa_chain(uploaded_file):
         combine_docs_chain_kwargs={"prompt": question_prompt}
     )
 
-    return qa_chain, text_chunks, document_text
+    return qa_chain, doc_chunks
 
 ##### __main__ #####
 # Page title
@@ -143,21 +145,21 @@ if not openai_api_key:
     st.stop()
 
 # file upload widget
-uploaded_file = st.file_uploader("Upload your PDF document", type=["pdf"])
+uploaded_files = st.file_uploader("Upload your PDF documents", type=["pdf"], accept_multiple_files=True)
 
-if not uploaded_file:
+if not uploaded_files:
     st.info("Please upload PDF documents to continue.")
     st.stop()
 
 # create Q&A conversational chain
-qa_chain, text_chunks, document_text = create_qa_chain(uploaded_file)
+qa_chain, doc_chunks_chunks = create_qa_chain(uploaded_files)
 
 ### Debug printing ###
 # st.write("Document Text")
 # st.write(document_text[:300])
 
-# st.write(f"Number of Chunks: {len(text_chunks)}")
-# st.write(text_chunks)
+# st.write(f"Number of Chunks: {len(doc_chunks)}")
+# st.write(doc_chunks)
 
 # st.write("QA Chain:")
 # st.write(qa_chain)
