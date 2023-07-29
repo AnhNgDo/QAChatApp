@@ -16,6 +16,9 @@ CHUNK_OVERLAP = 200
 SEARCH_TYPE = 'similarity'
 SEARCH_K = 3
 
+# Environment Varibles
+openai_api_key = st.secrets.OPEN_AI_API_KEY
+
 # callback handler for streaming output
 class StreamHandler(BaseCallbackHandler):
     def __init__(self, container, initial_text=""):
@@ -24,7 +27,36 @@ class StreamHandler(BaseCallbackHandler):
 
     def on_llm_new_token(self, token: str, **kwargs) -> None:
         self.text += token
-        self.container.markdown(self.text) 
+        self.container.markdown(self.text)
+
+# check password to access app
+def check_password():
+    """Returns `True` if the user had the correct password."""
+
+    def password_entered():
+        """Checks whether a password entered by the user is correct."""
+        if st.session_state["password"] == st.secrets["password"]:
+            st.session_state["password_correct"] = True
+            del st.session_state["password"]  # don't store password
+        else:
+            st.session_state["password_correct"] = False
+
+    if "password_correct" not in st.session_state:
+        # First run, show input for password.
+        st.text_input(
+            "Password", type="password", on_change=password_entered, key="password"
+        )
+        return False
+    elif not st.session_state["password_correct"]:
+        # Password not correct, show input + error.
+        st.text_input(
+            "Password", type="password", on_change=password_entered, key="password"
+        )
+        st.error("😕 Password incorrect")
+        return False
+    else:
+        # Password correct.
+        return True         
 
 # read file content, process text data, create Q&A chain
 @st.cache_resource
@@ -136,54 +168,61 @@ def create_qa_chain(uploaded_files):
 st.set_page_config(page_title="Anh's Bot", page_icon="🦜")
 st.title("🤖 Anh Q&A Chatbot 🦜🔗")
 
-# side bar
-with st.sidebar:
-    openai_api_key = st.text_input("OpenAI API Key", type="password")
+# only run app if correct password is entered
+if check_password():
 
-if not openai_api_key:
-    st.info("Please add your OpenAI API key to continue.")
-    st.stop()
+    # side bar for API Key input
+    # us this if not using env variables
 
-# file upload widget
-uploaded_files = st.file_uploader("Upload your PDF documents", type=["pdf"], accept_multiple_files=True)
+    # with st.sidebar:
+    #     openai_api_key = st.text_input("OpenAI API Key", type="password")
 
-if not uploaded_files:
-    st.info("Please upload PDF documents to continue.")
-    st.stop()
+    # if not openai_api_key:
+    #     st.info("Please add your OpenAI API key to continue.")
+    #     st.stop()
 
-# create Q&A conversational chain
-qa_chain, doc_chunks_chunks = create_qa_chain(uploaded_files)
+    # End side bar
 
-### Debug printing ###
-# st.write("Document Text")
-# st.write(document_text[:300])
+    # file upload widget
+    uploaded_files = st.file_uploader("Upload your PDF documents", type=["pdf"], accept_multiple_files=True)
 
-# st.write(f"Number of Chunks: {len(doc_chunks)}")
-# st.write(doc_chunks)
+    if not uploaded_files:
+        st.info("Please upload PDF documents to continue.")
+        st.stop()
 
-# st.write("QA Chain:")
-# st.write(qa_chain)
-### End Debug printing ##
+    # create Q&A conversational chain
+    qa_chain, doc_chunks_chunks = create_qa_chain(uploaded_files)
 
-# Initialize chat history
-if "messages" not in st.session_state or st.sidebar.button("Clear message history"):
-    st.session_state.messages = []
+    ### Debug printing ###
+    # st.write("Document Text")
+    # st.write(document_text[:300])
 
-# Display chat messages from history on app rerun
-for message in st.session_state.messages:
-    with st.chat_message(message["role"]):
-        st.markdown(message["content"])
+    # st.write(f"Number of Chunks: {len(doc_chunks)}")
+    # st.write(doc_chunks)
 
-# Accept user input
-if question := st.chat_input("Ask me any thing..."):
-    # Add user message to chat history
-    st.session_state.messages.append({"role": "user", "content": question})
-    # Display user message in chat message container
-    with st.chat_message("user"):
-        st.markdown(question)
-    # Display assistant response in chat message container
-    with st.chat_message("assistant"):
-        message_placeholder = st.empty()
-        stream_handler = StreamHandler(message_placeholder)
-        answer = qa_chain.run(question, callbacks=[stream_handler])
-        st.session_state.messages.append({"role": "assistant", "content": answer})
+    # st.write("QA Chain:")
+    # st.write(qa_chain)
+    ### End Debug printing ##
+
+    # Initialize chat history
+    if "messages" not in st.session_state or st.sidebar.button("Clear message history"):
+        st.session_state.messages = []
+
+    # Display chat messages from history on app rerun
+    for message in st.session_state.messages:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
+
+    # Accept user input
+    if question := st.chat_input("Ask me any thing..."):
+        # Add user message to chat history
+        st.session_state.messages.append({"role": "user", "content": question})
+        # Display user message in chat message container
+        with st.chat_message("user"):
+            st.markdown(question)
+        # Display assistant response in chat message container
+        with st.chat_message("assistant"):
+            message_placeholder = st.empty()
+            stream_handler = StreamHandler(message_placeholder)
+            answer = qa_chain.run(question, callbacks=[stream_handler])
+            st.session_state.messages.append({"role": "assistant", "content": answer})
